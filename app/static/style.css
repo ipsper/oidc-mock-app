@@ -1,4 +1,4 @@
-/* Grundläggande sidlayout och typsnitt */
+/* Gemensam CSS för alla sidor */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     line-height: 1.6;
@@ -9,7 +9,7 @@ body {
 }
 
 .container {
-    max-width: 900px;
+    max-width: 800px; /* En generell max-bredd, kan justeras vid behov */
     margin: 40px auto;
     padding: 30px;
     background-color: #ffffff;
@@ -19,59 +19,51 @@ body {
 }
 
 /* Rubriker */
-h1 {
+h1, h2 {
     color: #0056b3;
     border-bottom: 2px solid #dee2e6;
     padding-bottom: 10px;
     margin-bottom: 20px;
 }
 
-h2 {
-    color: #343a40;
-    margin-top: 30px;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
+h1 {
+    text-align: center; /* Centrerad rubrik som standard */
 }
 
-h3 {
-    color: #495057;
-    margin-top: 20px;
-    margin-bottom: 10px;
-}
-
-/* Länkar */
-a {
-    color: #007bff;
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
+.lead {
+    margin-bottom: 20px;
+    text-align: center; /* Centrerad lead-text som standard */
 }
 
 /* Listor */
-ul {
-    padding-left: 20px;
-}
 ul.list-group {
     list-style: none;
     padding: 0;
-    margin-bottom: 20px;
+    margin: 20px 0;
 }
 
 li.list-group-item {
-    border-bottom: 1px solid #eee;
-    padding: 10px 0;
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
 }
 li.list-group-item:last-child {
     border-bottom: none;
+}
+li.list-group-item code {
+    background-color: #f8f9fa;
+    padding: 3px 6px;
+    border-radius: 3px;
+    margin-right: 10px;
+}
+.scope-desc {
+    color: #6c757d;
+    font-size: 14px;
 }
 
 /* Knappar */
 .btn {
     display: inline-block;
-    padding: 10px 20px;
+    padding: 12px 24px;
     font-size: 1rem;
     font-weight: 500;
     color: #ffffff;
@@ -79,79 +71,219 @@ li.list-group-item:last-child {
     border: 1px solid #007bff;
     border-radius: 5px;
     text-align: center;
-    vertical-align: middle;
     cursor: pointer;
-    text-decoration: none;
-    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
-    margin-top: 10px;
+    transition: all 0.15s ease-in-out;
     margin-right: 10px;
+    margin-top: 10px; /* Standard marginal top */
+    text-decoration: none;
 }
 
 .btn:hover {
     background-color: #0056b3;
     border-color: #004085;
-    text-decoration: none;
     color: white;
+    text-decoration: none;
 }
 
 .btn-secondary {
     background-color: #6c757d;
     border-color: #6c757d;
 }
+
 .btn-secondary:hover {
     background-color: #5a6268;
     border-color: #545b62;
 }
 
+/* Full-width knapp (används på index) */
+.btn-full-width {
+    display: block;
+    width: 100%;
+    margin-top: 20px; /* Lite mer marginal ovanför */
+}
+
 /* Formulärelement */
-label {
+select.form-control,
+input[type="text"].form-control { /* Generell klass för text/select */
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+/* Stilar specifika för Consent-sidan */
+.config-section {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 5px;
+    margin: 20px 0;
+    border: 1px solid #e9ecef;
+}
+
+.config-item {
+    margin-bottom: 15px;
+}
+
+.config-item label {
     display: block;
     margin-bottom: 5px;
     font-weight: bold;
+    color: #495057;
 }
 
-select, input[type="submit"].btn {
-    padding: 8px 12px;
-    border: 1px solid #ced4da;
+/* Använd form-control klassen för input/select här också */
+.config-item input[type="text"],
+.config-item select {
+    width: 100%; /* Override default form-control if needed, men bör vara samma */
+}
+
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    width: auto; /* Checkboxar ska inte ta full bredd */
+    margin-right: 5px; /* Lite luft */
+}
+
+.checkbox-wrapper label {
+    margin-bottom: 0; /* Ingen extra marginal under label i checkbox wrapper */
+    font-weight: normal; /* Normal vikt för checkbox label */
+}
+
+.base-url {
+    background-color: #e9ecef;
+    padding: 12px;
     border-radius: 4px;
-    font-size: 1rem;
+    margin-bottom: 15px;
+    font-family: monospace;
+    font-size: 14px;
 }
 
-select {
-    margin-right: 10px;
+/* Stilar specifika för Result-sidan */
+pre {
+    background-color: #f0f0f0;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 14px;
+    margin: 15px 0;
 }
 
-input[type="submit"].btn {
-     width: auto; /* Låt knappen anpassa sig efter texten */
+/* Använd .form-control för resultat-inputs också */
+input[type="text"].result-input {
+    background-color: #eee;
+    cursor: text;
+    font-family: monospace;
 }
 
-/* Horisontell linje */
-hr {
+.copy-btn {
+    padding: 5px 10px;
+    cursor: pointer;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    font-size: 12px;
+    height: 38px; /* Matcha höjd med input */
+    line-height: 28px; /* Centrera text vertikalt */
+    margin-left: -1px; /* Överlappa lite för snyggare gruppering */
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.copy-btn:hover {
+    background-color: #5a6268;
+}
+
+.token-section {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    border: 1px solid #e9ecef;
+}
+
+.token-section p, .curl-example p {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.input-group {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.input-group input {
+    flex: 1;
+    margin-bottom: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.action-buttons {
     margin-top: 30px;
-    margin-bottom: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+hr {
+    margin: 30px 0;
     border: 0;
     border-top: 1px solid #dee2e6;
 }
 
-/* Specifikt för consent-sidan */
-.scope-desc {
+/* --- Stilar specifika för Debug Access-sektionen (index.html) --- */
+.debug-access {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+.debug-access h2 {
+    font-size: 1.2rem;
     color: #6c757d;
-    font-size: 0.9em;
-    margin-left: 15px;
+    border-bottom: none;
+    margin-bottom: 15px;
+    text-align: left;
+}
+/* Ta bort .form-inline och relaterade select/btn regler härifrån om de inte används någon annanstans */
+/* Behåll styling för Clear-knappen */
+.debug-access .clear-debug-btn {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+.debug-access .clear-debug-btn:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
 }
 
-code {
-    background-color: #e9ecef;
-    padding: 2px 5px;
-    border-radius: 3px;
-    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.9em;
-}
+/* TA BORT ELLER KOMMENTERA UT REGLER SOM VAR FÖR debug.html */
+/* .debug-section { ... } */
+/* .debug-section h2 { ... } */
+/* .debug-section dl dt { ... } */
+/* .debug-section dl dd { ... } */
+/* .debug-section pre { ... } */
+/* .debug-section code { ... } */
+/* .error-list { ... } */
+/* .error-list h2 { ... } */
+/* .error-list ul { ... } */
+/* .error-list li { ... } */
 
-strong {
-    color: #212529;
+/* Behåll flash-message styling */
+.flash-messages {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid transparent;
 }
+/* ... (flash-meddelande färger) ... */
 
-p {
-    margin-bottom: 1rem;
-} 
+/* ... (resten av CSS) ... */ 

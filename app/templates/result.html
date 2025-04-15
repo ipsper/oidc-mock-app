@@ -1,84 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>SP MOCK OIDC 02 - {{ idp_host_name }} - Results</title>
+    <title>SP MOCK OIDC - {{ idp_host_name }} - Results</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        pre { background-color: #f0f0f0; padding: 10px; border: 1px solid #ccc; overflow-x: auto; }
-        input[type="text"] { width: 80%; padding: 5px; margin-bottom: 5px; border: 1px solid #ccc; background-color: #eee; cursor: text; }
-        .copy-btn { padding: 5px 10px; cursor: pointer; margin-left: 5px; }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>SP MOCK OIDC 02 - {{ idp_host_name }} - Results</h1>
-        <p>Flow completed for user: <strong>{{ user.name }} ({{ user.sub }})</strong></p>
-        <p>Client ID: <code>{{ client_id }}</code></p>
+    <div class="container" style="max-width: 900px;">
+        <h1>SP MOCK OIDC - {{ idp_host_name }} - Results</h1>
+        <p class="lead" style="text-align: left;">Flow completed for user: <strong>{{ user.name }} ({{ user.sub }})</strong></p>
+        <p style="text-align: left;">Client ID: <code>{{ client_id }}</code></p>
         {% if client_secret %}
-        <p>Client Secret: <code>{{ client_secret }}</code></p>
+        <p style="text-align: left;">Client Secret: <code>{{ client_secret }}</code></p>
         {% endif %}
+        
         <hr>
+        <h2 style="text-align: left;">Tokens & Claims</h2>
 
-        <h2>Tokens & Claims</h2>
-
-        <div>
+        <div class="token-section">
             <p><strong>Access Token:</strong></p>
-            <input id="accessToken" type="text" readonly value="{{ access_token }}">
-            <button class="btn btn-sm copy-btn" data-target="#accessToken">Copy</button>
+            <div class="input-group">
+                <input id="accessToken" type="text" class="form-control result-input" readonly value="{{ access_token }}">
+                <button class="copy-btn" data-target="#accessToken">Copy</button>
+            </div>
         </div>
 
         {% if refresh_token %}
-        <div style="margin-top: 15px;">
+        <div class="token-section">
             <p><strong>Refresh Token:</strong></p>
-            <input id="refreshToken" type="text" readonly value="{{ refresh_token }}">
-            <button class="btn btn-sm copy-btn" data-target="#refreshToken">Copy</button>
+            <div class="input-group">
+                <input id="refreshToken" type="text" class="form-control result-input" readonly value="{{ refresh_token }}">
+                <button class="copy-btn" data-target="#refreshToken">Copy</button>
+            </div>
         </div>
         {% endif %}
 
-        <div style="margin-top: 15px;">
+        <div class="token-section">
             <p><strong>ID Token (Decoded Claims):</strong></p>
             <pre>{{ id_token_claims | tojson(indent=2) }}</pre>
         </div>
 
         <hr>
-        <h2>Example API Calls (Curl)</h2>
+        <h2 style="text-align: left;">Example API Calls (Curl)</h2>
 
-        <div>
+        <div class="curl-example">
             <p><strong>Get UserInfo:</strong></p>
-            <input id="curlUserInfo" type="text" readonly value="{{ curl_userinfo }}">
-            <button class="btn btn-sm copy-btn" data-target="#curlUserInfo">Copy</button>
+            <div class="input-group">
+                <input id="curlUserInfo" type="text" class="form-control result-input" readonly value="{{ curl_userinfo }}">
+                <button class="copy-btn" data-target="#curlUserInfo">Copy</button>
+            </div>
         </div>
 
         {% if refresh_token %}
-        <div style="margin-top: 15px;">
+        <div class="curl-example">
             <p><strong>Use Refresh Token:</strong></p>
-            <input id="curlRefresh" type="text" readonly value="{{ curl_refresh }}">
-            <button class="btn btn-sm copy-btn" data-target="#curlRefresh">Copy</button>
+            <div class="input-group">
+                <input id="curlRefresh" type="text" class="form-control result-input" readonly value="{{ curl_refresh }}">
+                <button class="copy-btn" data-target="#curlRefresh">Copy</button>
+            </div>
         </div>
         {% endif %}
 
-        <!-- Lägg till Introspection om det implementeras -->
-
-        <hr>
-        <h2>Session Actions</h2>
-        <form action="{{ url_for('end_session') }}" method="POST" style="display: inline-block; margin-right: 10px;">
-            <button type="submit" class="btn btn-secondary">End Mock Session (Logout)</button>
-        </form>
-        <a href="/" class="btn btn-secondary">Start Over (Select IdP)</a>
-
-
+        <div class="action-buttons">
+            <form action="{{ url_for('end_session') }}" method="POST" style="display: inline-block;">
+                <button type="submit" class="btn btn-secondary">End Mock Session (Logout)</button>
+            </form>
+            <a href="/" class="btn btn-secondary">Start Over (Select IdP)</a>
+        </div>
     </div>
 
     <script>
-        // Enkel copy-to-clipboard funktionalitet
         document.querySelectorAll('.copy-btn').forEach(button => {
             button.addEventListener('click', () => {
                 const targetId = button.getAttribute('data-target');
                 const targetInput = document.querySelector(targetId);
                 if (targetInput) {
                     targetInput.select();
-                    targetInput.setSelectionRange(0, 99999); // For mobile devices
+                    targetInput.setSelectionRange(0, 99999);
                     try {
                         document.execCommand('copy');
                         button.textContent = 'Copied!';

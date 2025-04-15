@@ -4,7 +4,7 @@ import time
 import json
 import logging
 from urllib.parse import urlencode
-from flask import Flask, request, jsonify, redirect, render_template, session, url_for
+from flask import Flask, request, jsonify, redirect, render_template, session, url_for, flash
 from authlib.integrations.flask_oauth2 import AuthorizationServer, ResourceProtector
 from authlib.jose import JsonWebKey, JsonWebSignature, jwt
 from authlib.common.encoding import urlsafe_b64encode
@@ -58,14 +58,68 @@ mock_users = {
     }
 }
 
-# Definiera IdP-profiler kopplade till användare
+# Utöka idp_hosts med mer konfiguration
 idp_hosts = [
-    {"id": "idp_alpha", "name": "IdP Alpha (testuser)", "user": "testuser", "target_base_url": "https://idp.alpha.example.org"},
-    {"id": "idp_beta", "name": "IdP Beta (betauser)", "user": "betauser", "target_base_url": "https://idp.beta.example.net"},
-    {"id": "idp_gamma", "name": "IdP Gamma (gammauser)", "user": "gammauser", "target_base_url": "https://idp.gamma.example.com"},
+    {
+        "id": "idp_alpha",
+        "name": "IdP Alpha (testuser)",
+        "user": "testuser",
+        "target_base_url": "https://idp.alpha.example.org",
+        "idp_config": {
+            "path": "/idp",  # Sökväg efter bas-URL
+            "params": {
+                "sign": "false",
+                "singleMethod": "false",
+                "generate_uuid": True  # Om True, generera nytt UUID för varje anrop
+            }
+        }
+    },
+    {
+        "id": "idp_beta",
+        "name": "IdP Beta (betauser)",
+        "user": "betauser",
+        "target_base_url": "https://idp.beta.example.net",
+        "idp_config": {
+            "path": "/idp",
+            "params": {
+                "sign": "false",
+                "singleMethod": "false",
+                "generate_uuid": True
+            }
+        }
+    },
+    {
+        "id": "idp_gamma",
+        "name": "IdP Gamma (gammauser)",
+        "user": "gammauser",
+        "target_base_url": "https://idp.gamma.example.com",
+        "idp_config": {
+            "path": "/idp",
+            "params": {
+                "sign": "false",
+                "singleMethod": "false",
+                "generate_uuid": True
+            }
+        }
+    },
+    {
+        "id": "idp_custom",
+        "name": "Custom IdP",
+        "user": "customuser",
+        "target_base_url": "https://custom.idp.example.org",
+        "idp_config": {
+            "path": "/custom-path",
+            "params": {
+                "sign": "true",
+                "singleMethod": "true",
+                "custom_param": "value",
+                "generate_uuid": False  # Använd inte UUID för denna IdP
+            }
+        }
+    }
 ]
 
-# Klienter
+# Klienter - Förenkla till bara en klient
 mock_clients = {
     "confidential_client": {
         "client_id": "confidential_client",
@@ -75,24 +129,10 @@ mock_clients = {
         "client_metadata": {
             "client_name": "Confidential Test Client",
             "scope": "openid profile email",
-            "redirect_uris": ["http://localhost:3000/callback", "http://127.0.0.1:3000/callback"],
-            "grant_types": ["authorization_code", "refresh_token"],
+            "redirect_uris": ["http://localhost:3000/callback"],
+            "grant_types": ["authorization_code"],
             "response_types": ["code"],
             "token_endpoint_auth_method": "client_secret_basic"
-        }
-    },
-    "public_client": {
-        "client_id": "public_client",
-        "client_secret": None, # Public clients have no secret
-        "client_id_issued_at": int(time.time()),
-        "client_secret_expires_at": 0,
-        "client_metadata": {
-            "client_name": "Public Test Client",
-            "scope": "openid profile",
-            "redirect_uris": ["http://localhost:3001/callback", "com.example.myapp:/oauth2redirect/example-provider"],
-            "grant_types": ["authorization_code", "implicit"], # Implicit often used by public clients
-            "response_types": ["code", "token", "id_token", "token id_token"], # Implicit requires token/id_token
-            "token_endpoint_auth_method": "none" # Public clients don't authenticate at token endpoint
         }
     }
 }
@@ -103,99 +143,71 @@ auth_code_storage = {}
 
 # --- Nyckelhantering (JWK) ---
 key_path = "app/private.pem"
-private_key_obj = None # JsonWebKey object
-public_jwk_dict = None # Public key as dict
+private_key_obj = None
+public_jwk_dict = None
 
-# Helper för int till base64url string
-def int_to_base64url_str(val):
-    # Beräkna minsta antal bytes som behövs
-    num_bytes = (val.bit_length() + 7) // 8
-    # Konvertera int till bytes (big-endian är standard för JWK)
-    byte_val = val.to_bytes(num_bytes, 'big')
-    # Base64url-koda, dekoda till ascii, ta bort padding
-    return urlsafe_b64encode(byte_val).decode('ascii').rstrip('=')
-
-if os.path.exists(key_path):
-    logger.info(f"Attempting to load private key from {key_path}")
-    try:
-        with open(key_path, "rb") as f:
-            key_bytes = f.read()
-            # Importera PEM till JsonWebKey object
-            private_key_obj = JsonWebKey.import_key(key_bytes, {'use': 'sig', 'alg': 'RS256'}) # Lägg till alg här också
-            # Skapa publik dict från laddat objekt
-            public_jwk_dict = json.loads(private_key_obj.public_jwk())
-            # Säkerställ att kid finns i den publika dicten (beräkna om nödvändigt)
-            if 'kid' not in public_jwk_dict:
-                 public_jwk_dict['kid'] = private_key_obj.thumbprint()
-                 logger.info(f"Calculated missing kid for loaded key: {public_jwk_dict['kid']}")
-            # Säkerställ use och alg
-            public_jwk_dict.setdefault('use', 'sig')
-            public_jwk_dict.setdefault('alg', 'RS256')
-
-            logger.info(f"Successfully loaded private key (kid: {public_jwk_dict.get('kid')}).")
-    except Exception as e:
-        logger.error(f"Failed to load or import private key from {key_path}: {e}", exc_info=True)
-        private_key_obj = None
-
-if not private_key_obj:
-    logger.info(f"Generating new RSA key pair and JWK...")
-    try:
-        # 1. Generera cryptography key object
-        crypto_private_key = rsa.generate_private_key(
-            public_exponent=65537, key_size=2048, backend=default_backend()
+try:
+    # Försök läsa existerande nyckel
+    with open(key_path, 'rb') as key_file:
+        private_key_pem = key_file.read()
+        private_key = serialization.load_pem_private_key(
+            private_key_pem,
+            password=None,
+            backend=default_backend()
         )
-        crypto_public_key = crypto_private_key.public_key()
+except FileNotFoundError:
+    # Generera ny nyckel om ingen finns
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+    # Spara den nya nyckeln
+    private_key_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    with open(key_path, 'wb') as f:
+        f.write(private_key_pem)
+    logger.info("Generated and saved new RSA key pair")
 
-        # 2. Bygg den *publika* JWK dictionaryn (utan kid)
-        private_numbers = crypto_private_key.private_numbers()
-        public_numbers = crypto_public_key.public_numbers()
+# Konvertera till JWK format
+public_key = private_key.public_key()
+public_numbers = public_key.public_numbers()
 
-        public_jwk_dict_tmp = {
-            "kty": "RSA", "use": "sig", "alg": "RS256",
-            "n": int_to_base64url_str(public_numbers.n),
-            "e": int_to_base64url_str(public_numbers.e),
-        }
+# Skapa JWK från public key komponenter
+from base64 import urlsafe_b64encode
+def int_to_base64(value):
+    value_bytes = value.to_bytes((value.bit_length() + 7) // 8, byteorder='big')
+    return urlsafe_b64encode(value_bytes).decode('ascii').rstrip('=')
 
-        # 3. Importera den publika dicten till ett TEMPORÄRT JsonWebKey objekt
-        public_key_obj_tmp = JsonWebKey.import_key(public_jwk_dict_tmp, {'use': 'sig', 'alg': 'RS256'})
+public_jwk_dict = {
+    "kty": "RSA",
+    "n": int_to_base64(public_numbers.n),
+    "e": int_to_base64(public_numbers.e),
+    "alg": "RS256",
+    "use": "sig",
+    "kid": "mock-key-1"
+}
 
-        # 4. Beräkna thumbprint (kid) FRÅN det temporära publika objektet
-        kid = public_key_obj_tmp.thumbprint()
-        logger.info(f"Calculated key thumbprint (kid): {kid}")
+# Skapa JsonWebKey objekt för signering
+private_key_obj = JsonWebKey.import_key({
+    "kty": "RSA",
+    "n": int_to_base64(public_numbers.n),
+    "e": int_to_base64(public_numbers.e),
+    "d": int_to_base64(private_key.private_numbers().d),
+    "p": int_to_base64(private_key.private_numbers().p),
+    "q": int_to_base64(private_key.private_numbers().q),
+    "dp": int_to_base64(private_key.private_numbers().dmp1),
+    "dq": int_to_base64(private_key.private_numbers().dmq1),
+    "qi": int_to_base64(private_key.private_numbers().iqmp),
+    "alg": "RS256",
+    "use": "sig",
+    "kid": "mock-key-1"
+})
 
-        # 5. Skapa den *slutliga* publika dicten genom att lägga till kid
-        public_jwk_dict = public_jwk_dict_tmp.copy() # Gör en kopia
-        public_jwk_dict['kid'] = kid
-
-        # 6. Bygg den *privata* JWK dictionaryn med alla komponenter (inkl. kid)
-        private_jwk_dict = {
-            **public_jwk_dict, # Använd den slutliga publika dicten
-            "d": int_to_base64url_str(private_numbers.d),
-            "p": int_to_base64url_str(private_numbers.p),
-            "q": int_to_base64url_str(private_numbers.q),
-            "dp": int_to_base64url_str(private_numbers.dmp1),
-            "dq": int_to_base64url_str(private_numbers.dmq1),
-            "qi": int_to_base64url_str(private_numbers.iqmp),
-        }
-
-        # 7. Importera den *privata* dictionaryn till det *slutliga* privata JsonWebKey objektet
-        private_key_obj = JsonWebKey.import_key(private_jwk_dict, {'use': 'sig', 'alg': 'RS256'})
-        logger.info(f"Generated final private key object (kid: {kid}).")
-
-        # 8. Exportera och spara PEM från cryptography-objektet
-        pem = crypto_private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
-        )
-        os.makedirs(os.path.dirname(key_path), exist_ok=True)
-        with open(key_path, "wb") as f:
-            f.write(pem)
-        logger.info(f"Saved new private key to {key_path}")
-
-    except Exception as e:
-        logger.error(f"Failed during key generation or saving: {e}", exc_info=True)
-        raise RuntimeError("Fatal error: Could not load or generate private key.") from e
+logger.info("Successfully initialized RSA key pair and JWK")
 
 # Säkerställ att public_jwk_dict finns
 if not public_jwk_dict:
@@ -219,20 +231,17 @@ def query_client(client_id):
         return client
     return None
 
-# Spara token funktion
+# Spara token funktion - Förenkla för bara confidential client
 def save_token(token, request):
     grant_user = request.user
-    client = request.client # client är en dict när den anropas från /execute_flow
+    client = request.client
     user_id = grant_user.get("sub") if grant_user else None
-    # Använd ['client_id'] istället för .client_id
     client_id = client['client_id']
     key = f"{client_id}:{user_id}:{token.get('token_type', 'bearer')}"
-    # Lägg till sub i token om det saknas, hämtat från user
     if 'sub' not in token and user_id:
         token['sub'] = user_id
     token_storage[key] = token
-    # Uppdatera loggning också
-    logger.info(f"Saved token for client {client.get('client_id', 'N/A')}, user {user_id}: {token['token_type']}")
+    logger.info(f"Saved token for client {client_id}, user {user_id}: {token['token_type']}")
 
 # Hämta token funktion (används sällan direkt med bearer tokens)
 # För demonstration, även om ResourceProtector oftast validerar direkt
@@ -412,7 +421,48 @@ def get_curl_refresh(refresh_token, client_id, client_secret):
 # --- Endpoints ---
 @app.route('/')
 def homepage():
-    return render_template('index.html', issuer=ISSUER, idp_hosts=idp_hosts)
+    # 1. Hämta alternativ för huvud-dropdownen (som förut)
+    dropdown_options = []
+    for host in idp_hosts:
+        base_name = host['name']
+        if ' (' in base_name:
+            base_name = base_name.split(' (', 1)[0]
+        target_url = host.get('target_base_url', 'URL saknas')
+        display_text = f"{base_name} - {target_url}"
+        dropdown_options.append({
+            'id': host['id'],
+            'display_text': display_text
+        })
+
+    # 2. Hämta tillgängliga debug-loggar från sessionen
+    all_debug_data = session.get('all_debug_data', {})
+    available_debug_logs = []
+    for idp_id, data in all_debug_data.items():
+        if idp_id == '_latest_error' and not data.get('selected_idp', {}).get('id'):
+             continue
+        # Försök matcha namnet med huvud-dropdown för konsistens
+        display_name = idp_id # Fallback
+        for host in idp_hosts:
+             if host['id'] == idp_id:
+                  base_name = host['name']
+                  if ' (' in base_name:
+                     base_name = base_name.split(' (', 1)[0]
+                  display_name = base_name
+                  break
+
+        available_debug_logs.append({
+            'idp_id': idp_id,
+            'display_name': display_name, # Namn att visa i debug-dropdown
+            'timestamp': data.get('timestamp', 'N/A') # Kan användas för sortering eller info
+        })
+
+    # Sortera debug-loggarna alfabetiskt efter namn
+    available_debug_logs.sort(key=lambda x: x['display_name'])
+
+    # 3. Skicka BÅDA listorna till mallen
+    return render_template('index.html',
+                           dropdown_options=dropdown_options,
+                           available_debug_logs=available_debug_logs)
 
 def current_user():
     user_id = session.get('user_id')
@@ -425,18 +475,22 @@ def select_idp():
     selected_idp_id = request.form.get('idp_host_id')
     selected_user = None
     selected_host_name = None
-    selected_target_url = None # Variabel för target URL
+    selected_target_url = None
+    selected_idp_config = None  # Ny variabel för konfiguration
+    
     for host in idp_hosts:
         if host['id'] == selected_idp_id:
             selected_user = mock_users.get(host['user'])
             selected_host_name = host['name']
-            selected_target_url = host['target_base_url'] # Spara target URL
+            selected_target_url = host['target_base_url']
+            selected_idp_config = host.get('idp_config', {})  # Hämta konfiguration
             break
 
     if selected_user and selected_host_name and selected_target_url:
         session['user_id'] = selected_user['sub']
         session['idp_host_name'] = selected_host_name
-        session['target_base_url'] = selected_target_url # Spara target URL i sessionen
+        session['target_base_url'] = selected_target_url
+        session['idp_config'] = selected_idp_config  # Spara konfiguration i session
         logger.info(f"IdP selected: {selected_idp_id}. User: {selected_user['sub']}. Host: {selected_host_name}. Target: {selected_target_url}")
         return redirect(url_for('consent'))
     else:
@@ -446,44 +500,92 @@ def select_idp():
 @app.route('/consent')
 def consent():
     user = current_user()
-    idp_host_name = session.get('idp_host_name', 'Unknown IdP') # Hämta från session
+    idp_host_name = session.get('idp_host_name', 'Unknown IdP')
+    idp_config = session.get('idp_config', {})
+    target_base_url = session.get('target_base_url')
+    
     if not user:
         logger.info("No user in session, redirecting to homepage to select IdP.")
         return redirect(url_for('homepage'))
 
-    # Hårdkoda för enkelhetens skull i mocken
     client_id = "confidential_client"
     client = query_client(client_id)
-    if not client: return "Error: Default client 'confidential_client' not found.", 500
+    if not client:
+        return "Error: Default client 'confidential_client' not found.", 500
 
-    scopes_list = ["openid", "profile", "email", "authorization_scope", "personal_identity_number", "commission"]
-    scope_descriptions = {
-        "openid": "Standard OIDC scope", "profile": "Read your basic profile information",
+    # Definiera alla scope-beskrivningar
+    all_scope_descriptions = {
+        "openid": "Standard OIDC scope",
+        "profile": "Read your basic profile information",
         "email": "Read your email address",
         "authorization_scope": '"authorizationScope" = Inera defined scope for "administrativt uppdrag"',
-        "personal_identity_number": "Read your personal identity number", "commission": "Read your commission details"
+        "personal_identity_number": "Read your personal identity number",
+        "commission": "Read your commission details"
     }
-    scopes_with_desc = [(s, scope_descriptions.get(s, "No description")) for s in scopes_list]
-    scopes_str = ' '.join(scopes_list)
 
-    # Generera nonce och redirect_uri att skicka med till resultatsidan via formuläret
+    # Extrahera beskrivningen för authorization_scope
+    authorization_scope_desc = all_scope_descriptions.get("authorization_scope", "")
+
+    # Definiera listan med övriga scopes som ska visas i listan
+    other_scopes_list = ["openid", "profile", "email", "personal_identity_number", "commission"]
+
+    # Skapa listan med scopes och beskrivningar för mallen (exklusive authorization_scope)
+    scopes_with_desc_for_list = [(s, all_scope_descriptions.get(s, "No description")) for s in other_scopes_list]
+
+    # Skapa strängen med ALLA scopes som ska skickas i formuläret
+    all_scopes_str = ' '.join(all_scope_descriptions.keys()) # Inkluderar authorization_scope här
+
     nonce = 'consent_nonce_' + secrets.token_urlsafe(8)
     redirect_uri = client['redirect_uris'][0]
 
-    # Skicka med idp_host_name till mallen
-    return render_template('consent.html', user=user, client_id=client_id, client_name=client['client_name'],
-                           scopes=scopes_with_desc, scopes_str=scopes_str, nonce=nonce, redirect_uri=redirect_uri,
-                           idp_host_name=idp_host_name) # SKICKA MED NAMNET
+    current_params = idp_config.get('params', {})
+    current_path = idp_config.get('path', '/idp')
+
+    return render_template('consent.html',
+                         user=user,
+                         client_id=client_id,
+                         client_name=client['client_name'],
+                         # Skicka med listan med övriga scopes
+                         scopes=scopes_with_desc_for_list,
+                         # Skicka med ALLA scopes i strängformat för formuläret
+                         scopes_str=all_scopes_str,
+                         # Skicka med den separata beskrivningen
+                         authorization_scope_desc=authorization_scope_desc,
+                         nonce=nonce,
+                         redirect_uri=redirect_uri,
+                         idp_host_name=idp_host_name,
+                         target_base_url=target_base_url,
+                         current_path=current_path,
+                         current_params=current_params)
 
 # Endpoint för att exekvera flödet och omdirigera till dynamisk IdP URL
 @app.route('/execute_flow', methods=['POST'])
 def execute_flow():
     user = current_user()
-    # Hämta sparad target base url från sessionen
     target_base_url = session.get('target_base_url')
+    
     if not user or not target_base_url:
         logger.warning("User or target_base_url not found in session for /execute_flow")
         return redirect(url_for('homepage'))
+
+    # Hämta formulärdata för IdP-konfiguration
+    idp_path = request.form.get('idp_path', '/idp')
+    generate_uuid = request.form.get('generate_uuid') == 'on'
+    static_uuid = request.form.get('static_uuid', '')
+    
+    # Bygg query parameters
+    target_query_params = {
+        'sign': request.form.get('sign', 'false'),
+        'singleMethod': request.form.get('singleMethod', 'false'),
+    }
+    
+    # Hantera UUID
+    if generate_uuid:
+        target_query_params['id'] = str(uuid.uuid4())
+    elif static_uuid:
+        target_query_params['id'] = static_uuid
+    else:
+        target_query_params['id'] = str(uuid.uuid4())  # Fallback till genererat
 
     # Hämta parametrar från formuläret (behövs fortfarande för token-generering)
     client_id = request.form.get('client_id')
@@ -535,15 +637,8 @@ def execute_flow():
     logger.info(f"Tokens generated and saved for user {user['sub']} before redirecting to target IdP.")
     # --- Slut på OIDC-flödessimulering ---
 
-    # --- Bygg den slutliga mål-URL:en ---
-    target_idp_path = "/idp" # Den fasta sökvägen du angav
-    target_query_params = {
-        'sign': 'false',
-        'singleMethod': 'false',
-        'id': str(uuid.uuid4()) # Generera ett unikt ID
-    }
-    # Säkerställ att base URL har rätt format innan vi bygger URL:en
-    final_target_url_base = target_base_url.rstrip('/') + target_idp_path
+    # Bygg den slutliga URL:en med de uppdaterade parametrarna
+    final_target_url_base = target_base_url.rstrip('/') + idp_path
     final_target_url = f"{final_target_url_base}?{urlencode(target_query_params)}"
 
     logger.info(f"Redirecting user to constructed target IdP URL: {final_target_url}")
@@ -642,6 +737,33 @@ def openid_configuration():
         "claims_supported": ["sub", "iss", "aud", "exp", "iat", "auth_time", "nonce", "name", "given_name", "family_name", "email"],
     }
     return jsonify(metadata)
+
+@app.route('/authorize')
+def authorize():
+    # Omdirigera till startsidan om någon försöker nå /authorize direkt
+    return redirect(url_for('homepage'))
+
+# NY Endpoint för att returnera ALL debug-data som JSON
+@app.route('/debug_json')
+def show_debug_json():
+    # Hämta all sparad debug-data
+    all_debug_data = session.get('all_debug_data', {})
+    # Returnera som JSON
+    # Använd json.dumps med indent för läsbarhet om man öppnar i webbläsare
+    # Men jsonify är mer "Flask-standard" för API-svar
+    response = jsonify(all_debug_data)
+    # För att göra det snyggare i webbläsaren kan man sätta indentering
+    # response.set_data(json.dumps(all_debug_data, indent=2)) # Kräver import json
+    # response.mimetype = 'application/json'                 # Säkerställ mimetype
+    return response # Använd jsonify direkt för enkelhet
+
+# Behåll rensningsfunktionen
+@app.route('/clear_debug', methods=['POST'])
+def clear_debug_logs():
+    cleared_count = len(session.pop('all_debug_data', {}))
+    logger.info(f"Cleared {cleared_count} debug log entries from session.")
+    flash(f"All {cleared_count} debug log(s) have been cleared.", "success")
+    return redirect(url_for('homepage'))
 
 if __name__ == '__main__':
     # Viktigt för utveckling: tillåt osäkra transporter (http)

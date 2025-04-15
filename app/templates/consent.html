@@ -1,35 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>SP MOCK OIDC 02 - {{ idp_host_name }} - Consent</title>
+    <title>SP MOCK OIDC - {{ idp_host_name }} - Consent</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>SP MOCK OIDC 02 - {{ idp_host_name }}</h1>
-        <p class="lead">Authenticated as: <strong>{{ user.name }} ({{ user.sub }})</strong></p>
-        <p class="lead">The client application "<strong>{{ client_name }}</strong>" requires the following permissions for your account:</p>
-        <ul class="list-group">
-            {% for scope, desc in scopes %}
-            <li class="list-group-item">
-                <code>{{ scope }}</code><span class="scope-desc">{{ desc }}</span>
-            </li>
-            {% endfor %}
-        </ul>
+        <h1>SP MOCK OIDC - {{ idp_host_name }}</h1>
+        <p class="lead" style="text-align: left;">Authenticated as: <strong>{{ user.name }} ({{ user.sub }})</strong></p>
+        
+        <!-- IdP Configuration Section -->
+        <div class="config-section">
+            <h2>IdP Configuration</h2>
+            <p style="margin-bottom: 20px;">Adjust the parameters for the final redirect to the IdP.</p>
+            
+            <div class="config-item">
+                <label>Base URL (read-only):</label>
+                <div class="base-url">{{ target_base_url }}</div>
+            </div>
+
+            <form action="{{ url_for('execute_flow') }}" method="POST" id="consent-form">
+                <!-- Hidden fields for OIDC flow -->
+                <input type="hidden" name="client_id" value="{{ client_id }}">
+                <input type="hidden" name="scope" value="{{ scopes_str }}">
+                <input type="hidden" name="nonce" value="{{ nonce }}">
+                <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+                
+                <!-- Configurable IdP Parameters -->
+                <div class="config-item">
+                    <label for="idp_path">IdP Path:</label>
+                    <input type="text" id="idp_path" name="idp_path" class="form-control" value="{{ current_path }}" required>
+                </div>
+
+                <div class="config-item">
+                    <label for="sign">Sign Parameter:</label>
+                    <select id="sign" name="sign" class="form-control">
+                        <option value="false" {% if current_params.get('sign') == 'false' %}selected{% endif %}>false</option>
+                        <option value="true" {% if current_params.get('sign') == 'true' %}selected{% endif %}>true</option>
+                    </select>
+                </div>
+
+                <div class="config-item">
+                    <label for="singleMethod">Single Method Parameter:</label>
+                    <select id="singleMethod" name="singleMethod" class="form-control">
+                        <option value="false" {% if current_params.get('singleMethod') == 'false' %}selected{% endif %}>false</option>
+                        <option value="true" {% if current_params.get('singleMethod') == 'true' %}selected{% endif %}>true</option>
+                    </select>
+                </div>
+
+                <div class="config-item">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="generate_uuid" name="generate_uuid" 
+                               {% if current_params.get('generate_uuid', True) %}checked{% endif %}>
+                        <label for="generate_uuid">Generate new UUID for each request</label>
+                    </div>
+                </div>
+
+                <div class="config-item" id="static_uuid_div" style="display: none;">
+                    <label for="static_uuid">Static UUID:</label>
+                    <input type="text" id="static_uuid" name="static_uuid" class="form-control"
+                           value="{{ current_params.get('id', '') }}"
+                           placeholder="Enter static UUID or leave empty for generated">
+                </div>
+            </form>
+        </div>
+
+        <!-- Flytta beskrivningen för authorization_scope hit, ovanför knapparna -->
+        <div class="scope-description-section" style="margin-top: 20px; margin-bottom: 20px; padding: 15px; background-color: #e9ecef; border-radius: 5px;">
+            <p><strong>Information om nödvändiga behörigheter:</strong></p>
+            <p>Klientapplikationen "<strong>{{ client_name }}</strong>" kräver behörigheten <code>authorization_scope</code>:</p>
+            <p style="margin-left: 15px;"><em>{{ authorization_scope_desc }}</em></p>
+            <p style="margin-top: 10px;">Genom att klicka på "Authorise & Continue" godkänner du även standardbehörigheter som `openid`, `profile` och `email`.</p>
+        </div>
+
         <hr>
-        <form action="{{ url_for('execute_flow') }}" method="POST">
-            <input type="hidden" name="client_id" value="{{ client_id }}">
-            <input type="hidden" name="scope" value="{{ scopes_str }}">
-            <input type="hidden" name="nonce" value="{{ nonce }}">
-            <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
 
-            <br>
-            <button type="submit" class="btn">Authorise & Continue to IdP</button>
-        </form>
+        <!-- Knappar: Använd form attribute för att koppla till formuläret -->
+        <button type="submit" class="btn" form="consent-form">Authorise & Continue to IdP</button>
         <a class="btn btn-secondary" href="/">Cancel (Back to IdP Select)</a>
-
-        <!-- Scope customization form kan läggas till här om det behövs -->
     </div>
+
+    <script>
+        // Toggle static UUID input visibility based on checkbox
+        document.getElementById('generate_uuid').addEventListener('change', function() {
+            document.getElementById('static_uuid_div').style.display = 
+                this.checked ? 'none' : 'block';
+        });
+
+        // Trigger initial state
+        document.getElementById('generate_uuid').dispatchEvent(new Event('change'));
+    </script>
 </body>
 </html> 

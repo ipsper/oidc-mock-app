@@ -1,12 +1,12 @@
 # Authlib OIDC Mock Server
 
-Detta är en OpenID Connect (OIDC) mock-server byggd med Python, Flask och Authlib. Den är avsedd för utvecklings- och testsyften för att simulera en OIDC Identity Provider (IdP). Servern körs i en Docker-container.
+Detta är en OpenID Connect (OIDC) mock-server byggd med Python, Flask och Authlib. Den är avsedd för utvecklings- och testsyften för att simulera en OIDC Identity Provider (IdP) och dess omdirigeringsbeteende efter autentisering. Servern körs i en Docker-container.
 
 ## Användarmanual
 
 ### Syfte
 
-Mock-servern låter dig simulera OIDC-autentiseringsflöden utan att behöva koppla upp dig mot en riktig IdP. Detta är användbart när du utvecklar eller testar klientapplikationer (Relying Parties) som använder OIDC.
+Mock-servern låter dig simulera OIDC-autentiseringsflöden utan att behöva koppla upp dig mot en riktig IdP. Detta är användbart när du utvecklar eller testar klientapplikationer (Relying Parties) som använder OIDC, eller när du vill testa hur en omdirigering till en specifik IdP-URL beter sig efter ett simulerat OIDC-flöde.
 
 ### Flöde
 
@@ -14,37 +14,53 @@ Det huvudsakliga sättet att interagera med mock-servern är via dess webbgräns
 
 1.  **Starta Servern:** Se "Driftmanual" nedan.
 2.  **Öppna i webbläsare:** Gå till [http://localhost:8000](http://localhost:8000).
-3.  **Välj IdP-profil:** På startsidan väljer du vilken simulerad identitetsleverantör (och därmed vilken testanvändare) du vill använda från dropdown-menyn. Klicka på "Continue with Selected IdP".
-4.  **Samtyckessida:** Du omdirigeras till en sida som visar vilken användare du är "inloggad" som och vilka scopes (behörigheter) en exempelklient begär.
-5.  **Auktorisera:** Klicka på "Authorise & View Results"-knappen. Detta simulerar att du godkänner begäran.
-6.  **Resultatsida:** Servern genomför ett internt Authorization Code Flow och visar sedan resultatet, inklusive:
-    *   Access Token
-    *   Refresh Token (om tillgängligt)
-    *   ID Token (avkodade claims)
-    *   Exempel på `curl`-kommandon för att använda tokens (t.ex. mot UserInfo-endpointen).
-7.  **Avsluta Session:** Från resultatsidan kan du klicka på "End Mock Session (Logout)" för att rensa den simulerade inloggningen eller "Start Over" för att gå tillbaka till IdP-valet.
+3.  **Välj IdP-profil:** På startsidan väljer du vilken simulerad identitetsleverantör du vill använda från dropdown-menyn. Alternativen visar nu IdP:ns namn och dess konfigurerade mål-URL (t.ex. `IdP Alpha - https://idp.alpha.example.org`). Klicka på "Continue with Selected IdP". Valet avgör vilken testanvändare som används internt och vilken standardkonfiguration för omdirigering som laddas.
+4.  **Samtyckessida:** Du omdirigeras till en sida som visar:
+    *   Vilken användare du är "inloggad" som (baserat på ditt IdP-val).
+    *   Vilken IdP du valt (visas i rubriken).
+    *   **IdP-konfiguration:** Ett avsnitt där du kan se och *ändra* parametrarna för den slutliga omdirigeringen till IdP:n:
+        *   **Base URL:** Den grundläggande URL:en för den valda IdP:n (ej redigerbar här, konfigureras i `app.py`).
+        *   **IdP Path:** Sökvägen som läggs till efter Base URL (t.ex. `/idp`).
+        *   **Sign Parameter:** Värdet för `sign`-parametern (true/false).
+        *   **Single Method Parameter:** Värdet för `singleMethod`-parametern (true/false).
+        *   **Generate new UUID:** Om en ny unik identifierare (`id`-parameter) ska genereras för varje omdirigering. Om avbockad kan du ange ett statiskt UUID.
+    *   **Requested Permissions:** Vilka scopes (behörigheter) en exempelklient begär (dessa är hårdkodade i mock-servern för demonstration).
+5.  **Auktorisera och Omdirigera:** Justera IdP-konfigurationen om du vill och klicka sedan på "Authorise & Continue to IdP"-knappen. Detta kommer att:
+    *   Simulera ett komplett OIDC-flöde internt (generera tokens etc., men de visas inte direkt).
+    *   Bygga den slutliga URL:en baserat på den **Base URL** som hör till den valda IdP:n och de **konfigurationsvärden** du angett (eller lämnat som standard) på samtyckessidan.
+    *   Omdirigera din webbläsare till den dynamiskt byggda URL:en.
+    *   *Exempel:* Om du valde "IdP Alpha" och behöll standardvärdena, kan URL:en bli:
+        ```
+        https://idp.alpha.example.org/idp?sign=false&singleMethod=false&id=<genererat-uuid>
+        ```
+    *   *Exempel:* Om du ändrade Path till `/login` och satte Sign till `true`, kan URL:en bli:
+        ```
+        https://idp.alpha.example.org/login?sign=true&singleMethod=false&id=<genererat-uuid>
+        ```
 
-### Direkt Testflöden
+### Tillgängliga IdP-profiler och Standardkonfiguration
 
-På startsidan finns även länkar ("Direct Test Flow Links") som startar ett OIDC-flöde direkt mot `/authorize`-endpointen med förkonfigurerade klienter och scopes. Dessa flöden använder den användare som senast valts och loggades in via IdP-valet. Om ingen användare valts används standardanvändaren.
+IdP-profilerna och deras standardkonfiguration för omdirigering definieras i listan `idp_hosts` i `app/app.py`. Varje profil innehåller:
 
-### Tillgängliga Testanvändare/IdP-profiler
+*   `id`: En intern identifierare.
+*   `name`: Namnet som visas i dropdown (initialt).
+*   `user`: Vilken `mock_users`-nyckel som ska användas för den interna simuleringen.
+*   `target_base_url`: Den grundläggande URL:en för omdirigeringen.
+*   `idp_config`: En dictionary med standardvärden för omdirigeringen:
+    *   `path`: Standard-sökvägen (t.ex. `/idp`).
+    *   `params`: En dictionary med standard query-parametrar (t.ex. `sign`, `singleMethod`, `generate_uuid`).
 
-*   **IdP Alpha:** Använder `testuser` (Test Användare Alpha)
-*   **IdP Beta:** Använder `betauser` (Beta Test Användare)
-*   **IdP Gamma:** Använder `gammauser` (Gamma Test Användare)
-
-(Alla användare har lösenordet `password` för den simulerade inloggningen, men detta används bara internt om man skulle bygga ut med en riktig inloggningssida).
+Du kan enkelt lägga till eller ändra dessa profiler i `app.py` för att testa olika scenarier.
 
 ### Standard OIDC Endpoints
 
-Servern exponerar följande standard-endpoints:
+Även om huvudsyftet nu är att testa omdirigeringen, exponerar servern fortfarande följande standard OIDC-endpoints (används internt under flödessimuleringen och kan anropas manuellt för felsökning):
 
 *   `/.well-known/openid-configuration`: Discovery-dokument med serverns metadata.
-*   `/jwks`: Serverns publika nycklar (JSON Web Key Set) för att validera ID Tokens.
-*   `/authorize`: Auktoriseringsendpoint (startar flödet).
-*   `/token`: Tokenendpoint (för att byta kod mot tokens, använda refresh token).
-*   `/userinfo`: UserInfo-endpoint (för att hämta användarinformation med access token).
+*   `/jwks`: Serverns publika nycklar (JSON Web Key Set).
+*   `/authorize`: Omdirigerar nu till startsidan (används inte direkt).
+*   `/token`: Tokenendpoint (för att byta kod mot tokens internt).
+*   `/userinfo`: UserInfo-endpoint (för att hämta användarinformation med ett giltigt access token).
 
 ## Driftmanual
 
@@ -76,29 +92,52 @@ docker-compose down
 
 ### Konfiguration
 
-Viss konfiguration kan justeras via miljövariabler i `docker-compose.yml`:
+#### Miljövariabler (`docker-compose.yml`)
 
-*   `BASE_URL`: Bas-URL:en för servern (t.ex. `http://localhost:8000`). Används för att bygga endpoint-URL:er.
+Viss grundläggande konfiguration kan justeras via miljövariabler i `docker-compose.yml`:
+
+*   `BASE_URL`: Bas-URL:en för *mock-servern själv* (t.ex. `http://localhost:8000`). Används för att bygga mock-serverns egna endpoint-URL:er.
 *   `ISSUER`: OIDC Issuer Identifier. Standard är samma som `BASE_URL`.
-*   `FLASK_SECRET_KEY`: En hemlig nyckel som används av Flask för sessionshantering. Standard är "dev-secret-key", **ändra detta om servern skulle exponeras externt (vilket inte rekommenderas för denna mock)**.
+*   `FLASK_SECRET_KEY`: En hemlig nyckel som används av Flask för sessionshantering. Standard är "dev-secret-key".
+
+#### IdP-profiler (`app/app.py`)
+
+Som nämnts ovan konfigureras de olika IdP-profilerna, deras testanvändare och standardvärden för omdirigerings-URL:en direkt i `idp_hosts`-listan i `app/app.py`.
 
 ### Nyckelhantering
 
-Servern använder ett RSA-nyckelpar för att signera ID Tokens.
-*   Den privata nyckeln genereras automatiskt första gången servern startar (om den inte redan finns) och sparas i `app/private.pem`.
-*   **Dela inte denna privata nyckel.** Om du behöver generera en ny, radera helt enkelt `app/private.pem` och starta om servern med `docker-compose up --build`.
+Servern använder ett RSA-nyckelpar för att signera ID Tokens (som genereras internt).
+*   Den privata nyckeln (`app/private.pem`) genereras automatiskt första gången servern startar om den inte finns.
+*   **Dela inte denna privata nyckel.** Radera filen och starta om servern för att generera en ny.
 *   Den publika nyckeln exponeras via `/jwks`-endpointen.
+
+### CSS Styling
+
+All CSS för webbgränssnittet (startsida, samtyckessida) finns samlad i en enda fil: `app/static/style.css`. Detta gjordes för enkelhetens skull i detta projekt.
 
 ### Felsökning
 
-*   **Visa loggar:** För att se loggutskrifter från servern (inklusive felmeddelanden), kör:
+*   **Visa loggar:**
     ```bash
     docker-compose logs -f
     ```
-    Tryck `Ctrl+C` för att sluta följa loggarna.
-*   **Bygga om utan cache:** Om du misstänker problem med Docker-cachen vid bygge, använd:
+*   **Bygga om utan cache:**
     ```bash
     docker-compose build --no-cache
     ```
 
 ### Projektstruktur
+
+### file struktur 
+├── app/
+│ ├── static/
+│ │ └── style.css # All CSS
+│ ├── templates/
+│ │ ├── index.html # Startsida (IdP-val)
+│ │ └── consent.html # Samtyckessida med konfiguration
+│ ├── app.py # Flask-applikation, OIDC-logik, IdP-konfig
+│ └── private.pem # Autogenererad privat nyckel (Ignoreras av Git)
+├── .gitignore # Specifierar vilka filer Git ska ignorera
+├── docker-compose.yml # Docker Compose konfiguration
+├── Dockerfile # Docker build instruktioner
+└── README.md # Denna fil

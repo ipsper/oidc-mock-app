@@ -172,3 +172,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+*.pem
+private.pem
+
+consent.css
+index.css
+result.css
