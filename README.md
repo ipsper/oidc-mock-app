@@ -24,19 +24,18 @@ Det huvudsakliga sättet att interagera med mock-servern är via dess webbgräns
         *   **Sign Parameter:** Värdet för `sign`-parametern (true/false).
         *   **Single Method Parameter:** Värdet för `singleMethod`-parametern (true/false).
         *   **Generate new UUID:** Om en ny unik identifierare (`id`-parameter) ska genereras för varje omdirigering. Om avbockad kan du ange ett statiskt UUID.
-    *   **Requested Permissions:** Vilka scopes (behörigheter) en exempelklient begär (dessa är hårdkodade i mock-servern för demonstration).
+    *   **Nödvändiga Behörigheter:** Information om den specifika behörigheten `authorization_scope` som krävs.
 5.  **Auktorisera och Omdirigera:** Justera IdP-konfigurationen om du vill och klicka sedan på "Authorise & Continue to IdP"-knappen. Detta kommer att:
-    *   Simulera ett komplett OIDC-flöde internt (generera tokens etc., men de visas inte direkt).
+    *   Simulera ett komplett OIDC-flöde internt (generera tokens etc., men de visas inte direkt). Data från detta flöde sparas i sessionen för felsökning.
     *   Bygga den slutliga URL:en baserat på den **Base URL** som hör till den valda IdP:n och de **konfigurationsvärden** du angett (eller lämnat som standard) på samtyckessidan.
     *   Omdirigera din webbläsare till den dynamiskt byggda URL:en.
-    *   *Exempel:* Om du valde "IdP Alpha" och behöll standardvärdena, kan URL:en bli:
-        ```
-        https://idp.alpha.example.org/idp?sign=false&singleMethod=false&id=<genererat-uuid>
-        ```
-    *   *Exempel:* Om du ändrade Path till `/login` och satte Sign till `true`, kan URL:en bli:
-        ```
-        https://idp.alpha.example.org/login?sign=true&singleMethod=false&id=<genererat-uuid>
-        ```
+
+### Felsökning av Flöde (Debug)
+
+På startsidan finns en länk "View All Logs (JSON)" och en knapp "Clear All Logs".
+
+*   **View All Logs (JSON):** Öppnar en ny flik som visar all felsökningsdata som sparats i din session från tidigare körda flöden. Datan är strukturerad per IdP-profil och innehåller indata, simuleringssteg, eventuella fel och den slutliga omdirigerings-URL:en för varje körning.
+*   **Clear All Logs:** Tar bort all sparad felsökningsdata från din session.
 
 ### Tillgängliga IdP-profiler och Standardkonfiguration
 
@@ -54,30 +53,44 @@ Du kan enkelt lägga till eller ändra dessa profiler i `app.py` för att testa 
 
 ### Standard OIDC Endpoints
 
-Även om huvudsyftet nu är att testa omdirigeringen, exponerar servern fortfarande följande standard OIDC-endpoints (används internt under flödessimuleringen och kan anropas manuellt för felsökning):
+Servern exponerar fortfarande följande standard OIDC-endpoints (används internt och kan anropas manuellt):
 
-*   `/.well-known/openid-configuration`: Discovery-dokument med serverns metadata.
-*   `/jwks`: Serverns publika nycklar (JSON Web Key Set).
-*   `/authorize`: Omdirigerar nu till startsidan (används inte direkt).
-*   `/token`: Tokenendpoint (för att byta kod mot tokens internt).
-*   `/userinfo`: UserInfo-endpoint (för att hämta användarinformation med ett giltigt access token).
+*   `/.well-known/openid-configuration`: Discovery-dokument.
+*   `/jwks`: Serverns publika nycklar.
+*   `/authorize`: Omdirigerar nu till startsidan.
+*   `/token`: Tokenendpoint (används internt).
+*   `/userinfo`: UserInfo-endpoint.
+*   `/debug_json`: Endpoint som returnerar all sparad debug-data som JSON.
 
 ## Driftmanual
 
 ### Förutsättningar
 
+*   Git
 *   Docker
 *   Docker Compose
 
-### Starta Servern
+### Starta/Uppdatera Servern
 
-1.  Klona repot (om du inte redan gjort det).
-2.  Navigera till projektets rotmapp i terminalen.
-3.  Kör följande kommando:
+1.  **Klona repot (om du inte redan gjort det):**
+    ```bash
+    git clone <repository-url> # Ersätt <repository-url> med rätt URL
+    cd <repository-directory> # Gå in i den klonade mappen
+    ```
+
+2.  **Eller uppdatera repot (om du redan klonat det):**
+    Navigera till projektets rotmapp i terminalen och kör:
+    ```bash
+    git pull
+    ```
+
+3.  **Bygg och starta Docker-containern:**
+    Kör följande kommando i projektets rotmapp:
     ```bash
     docker-compose up --build -d
     ```
-    *   `--build`: Bygger Docker-imagen om den inte finns eller om koden ändrats.
+    *   `git pull`: Hämtar de senaste ändringarna från Git-repot.
+    *   `--build`: Bygger om Docker-imagen om koden (t.ex. `app.py` eller `Dockerfile`) har ändrats. Viktigt efter `git pull`.
     *   `-d`: Kör containern i bakgrunden (detached mode).
 
 Servern är nu tillgänglig på [http://localhost:8000](http://localhost:8000).
@@ -94,37 +107,28 @@ docker-compose down
 
 #### Miljövariabler (`docker-compose.yml`)
 
-Viss grundläggande konfiguration kan justeras via miljövariabler i `docker-compose.yml`:
+Grundläggande konfiguration för *mock-servern själv*:
 
-*   `BASE_URL`: Bas-URL:en för *mock-servern själv* (t.ex. `http://localhost:8000`). Används för att bygga mock-serverns egna endpoint-URL:er.
-*   `ISSUER`: OIDC Issuer Identifier. Standard är samma som `BASE_URL`.
-*   `FLASK_SECRET_KEY`: En hemlig nyckel som används av Flask för sessionshantering. Standard är "dev-secret-key".
+*   `BASE_URL`: Mock-serverns bas-URL (t.ex. `http://localhost:8000`).
+*   `ISSUER`: OIDC Issuer Identifier (standard: `BASE_URL`).
+*   `FLASK_SECRET_KEY`: Hemlig nyckel för Flask-sessioner (standard: "dev-secret-key").
 
 #### IdP-profiler (`app/app.py`)
 
-Som nämnts ovan konfigureras de olika IdP-profilerna, deras testanvändare och standardvärden för omdirigerings-URL:en direkt i `idp_hosts`-listan i `app/app.py`.
+Konfiguration av de simulerade IdP:erna och deras omdirigeringsbeteende görs i `idp_hosts`-listan i `app/app.py`.
 
 ### Nyckelhantering
 
-Servern använder ett RSA-nyckelpar för att signera ID Tokens (som genereras internt).
-*   Den privata nyckeln (`app/private.pem`) genereras automatiskt första gången servern startar om den inte finns.
-*   **Dela inte denna privata nyckel.** Radera filen och starta om servern för att generera en ny.
-*   Den publika nyckeln exponeras via `/jwks`-endpointen.
+Servern använder ett RSA-nyckelpar (`app/private.pem`) för att signera ID Tokens internt. Genereras automatiskt. Radera filen och starta om för att skapa en ny.
 
 ### CSS Styling
 
-All CSS för webbgränssnittet (startsida, samtyckessida) finns samlad i en enda fil: `app/static/style.css`. Detta gjordes för enkelhetens skull i detta projekt.
+All CSS finns i `app/static/style.css`.
 
-### Felsökning
+### Felsökning (Server)
 
-*   **Visa loggar:**
-    ```bash
-    docker-compose logs -f
-    ```
-*   **Bygga om utan cache:**
-    ```bash
-    docker-compose build --no-cache
-    ```
+*   **Visa loggar:** `docker-compose logs -f`
+*   **Bygga om utan cache:** `docker-compose build --no-cache`
 
 ### Projektstruktur
 
