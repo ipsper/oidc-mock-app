@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authlib OIDC Mock Server - Select IdP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Authlib OIDC Mock Server</h1>
+        <p>Server is running. Issuer: {{ issuer }}</p>
+        <ul>
+            <li><a href="/.well-known/openid-configuration">Discovery Document</a></li>
+            <li><a href="/jwks">JWKS</a></li>
+        </ul>
+        <hr>
+        <h2>1. Select Identity Provider</h2>
+        <p>Choose which simulated IdP (and associated user) you want to authenticate as.</p>
+        <form method="post" action="/select_idp">
+            <label for="idp_host_select">Select IdP Host:</label>
+            <select name="idp_host_id" id="idp_host_select">
+                {% for host in idp_hosts %}
+                <option value="{{ host.id }}">{{ host.name }}</option>
+                {% endfor %}
+            </select>
+            <br><br>
+            <input type="submit" class="btn" value="Continue with Selected IdP">
+        </form>
+        <hr>
+         <h2>Direct Test Flow Links (Alternative)</h2>
+         <p>These links bypass the IdP selection and start an OIDC flow directly using the *currently logged in* user (or default user if none logged in via selection above).</p>
+         <h3>Confidential Client (Auth Code Flow)</h3>
+         <p>Client ID: <code>confidential_client</code> | Redirect URI: <code>http://localhost:3000/callback</code></p>
+         <a class="btn" href="/authorize?client_id=confidential_client&response_type=code&scope=openid%20profile%20email&redirect_uri=http://localhost:3000/callback&state=abc_conf&nonce=xyz_conf">Start Flow</a>
+
+         <h3>Public Client (Implicit Flow - id_token)</h3>
+         <p>Client ID: <code>public_client</code> | Redirect URI: <code>http://localhost:3001/callback</code></p>
+         <a class="btn" href="/authorize?client_id=public_client&response_type=id_token&scope=openid%20profile&redirect_uri=http://localhost:3001/callback&state=abc_pub&nonce=xyz_pub">Start Flow</a>
+     </div>
+</body>
+</html> 

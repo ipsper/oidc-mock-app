@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>SP MOCK OIDC 02 - {{ idp_host_name }} - Consent</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>SP MOCK OIDC 02 - {{ idp_host_name }}</h1>
+        <p class="lead">Authenticated as: <strong>{{ user.name }} ({{ user.sub }})</strong></p>
+        <p class="lead">The client application "<strong>{{ client_name }}</strong>" requires the following permissions for your account:</p>
+        <ul class="list-group">
+            {% for scope, desc in scopes %}
+            <li class="list-group-item">
+                <code>{{ scope }}</code><span class="scope-desc">{{ desc }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        <hr>
+        <form action="{{ url_for('execute_flow') }}" method="POST">
+            <input type="hidden" name="client_id" value="{{ client_id }}">
+            <input type="hidden" name="scope" value="{{ scopes_str }}">
+            <input type="hidden" name="nonce" value="{{ nonce }}">
+            <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+
+            <br>
+            <button type="submit" class="btn">Authorise & Continue to IdP</button>
+        </form>
+        <a class="btn btn-secondary" href="/">Cancel (Back to IdP Select)</a>
+
+        <!-- Scope customization form kan läggas till här om det behövs -->
+    </div>
+</body>
+</html> 

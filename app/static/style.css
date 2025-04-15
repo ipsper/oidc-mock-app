@@ -1,0 +1,157 @@
+/* Grundläggande sidlayout och typsnitt */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+.container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Rubriker */
+h1 {
+    color: #0056b3;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    color: #343a40;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+h3 {
+    color: #495057;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+/* Länkar */
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Listor */
+ul {
+    padding-left: 20px;
+}
+ul.list-group {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 20px;
+}
+
+li.list-group-item {
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+}
+li.list-group-item:last-child {
+    border-bottom: none;
+}
+
+/* Knappar */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #ffffff;
+    background-color: #007bff;
+    border: 1px solid #007bff;
+    border-radius: 5px;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    margin-top: 10px;
+    margin-right: 10px;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+    border-color: #004085;
+    text-decoration: none;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+/* Formulärelement */
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+select, input[type="submit"].btn {
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+select {
+    margin-right: 10px;
+}
+
+input[type="submit"].btn {
+     width: auto; /* Låt knappen anpassa sig efter texten */
+}
+
+/* Horisontell linje */
+hr {
+    margin-top: 30px;
+    margin-bottom: 30px;
+    border: 0;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Specifikt för consent-sidan */
+.scope-desc {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-left: 15px;
+}
+
+code {
+    background-color: #e9ecef;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.9em;
+}
+
+strong {
+    color: #212529;
+}
+
+p {
+    margin-bottom: 1rem;
+} 
