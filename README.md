@@ -70,27 +70,25 @@ Servern exponerar fortfarande följande standard OIDC-endpoints (används intern
 *   Docker
 *   Docker Compose
 
-### Starta/Uppdatera Servern
+### Hämta och Starta Servern
 
-1.  **Klona repot (om du inte redan gjort det):**
-    ```bash
-    git clone <repository-url> # Ersätt <repository-url> med rätt URL
-    cd <repository-directory> # Gå in i den klonade mappen
-    ```
+1.  **Hämta koden:**
+    *   **Om du inte har koden sedan tidigare (första gången):** Klona repot. Ersätt `<repository-url>` med den faktiska URL:en till ditt Git-repository.
+        ```bash
+        git clone <repository-url>
+        cd <repository-directory> # Gå in i den nya mappen
+        ```
+    *   **Om du redan har koden och vill uppdatera:** Navigera till projektets rotmapp i terminalen och hämta de senaste ändringarna.
+        ```bash
+        git pull
+        ```
 
-2.  **Eller uppdatera repot (om du redan klonat det):**
-    Navigera till projektets rotmapp i terminalen och kör:
-    ```bash
-    git pull
-    ```
-
-3.  **Bygg och starta Docker-containern:**
-    Kör följande kommando i projektets rotmapp:
+2.  **Bygg och starta Docker-containern:**
+    Kör följande kommando i projektets rotmapp (där `docker-compose.yml` finns):
     ```bash
     docker-compose up --build -d
     ```
-    *   `git pull`: Hämtar de senaste ändringarna från Git-repot.
-    *   `--build`: Bygger om Docker-imagen om koden (t.ex. `app.py` eller `Dockerfile`) har ändrats. Viktigt efter `git pull`.
+    *   `--build`: Viktigt för att bygga om Docker-imagen om koden (t.ex. `app.py` eller `Dockerfile`) har ändrats, vilket ofta sker efter `git pull`.
     *   `-d`: Kör containern i bakgrunden (detached mode).
 
 Servern är nu tillgänglig på [http://localhost:8000](http://localhost:8000).
@@ -132,16 +130,22 @@ All CSS finns i `app/static/style.css`.
 
 ### Projektstruktur
 
-### file struktur 
+Här är en översikt över projektets filstruktur:
+
+```ascii
+.
 ├── app/
-│ ├── static/
-│ │ └── style.css # All CSS
-│ ├── templates/
-│ │ ├── index.html # Startsida (IdP-val)
-│ │ └── consent.html # Samtyckessida med konfiguration
-│ ├── app.py # Flask-applikation, OIDC-logik, IdP-konfig
-│ └── private.pem # Autogenererad privat nyckel (Ignoreras av Git)
-├── .gitignore # Specifierar vilka filer Git ska ignorera
-├── docker-compose.yml # Docker Compose konfiguration
-├── Dockerfile # Docker build instruktioner
-└── README.md # Denna fil
+│   ├── static/
+│   │   └── style.css         # All CSS för webbgränssnittet
+│   ├── templates/
+│   │   ├── index.html        # Startsida (IdP-val & Debug-åtkomst)
+│   │   └── consent.html      # Samtyckessida med IdP-konfiguration
+│   ├── app.py                # Flask-applikation, OIDC-logik, IdP-konfig, Debug-endpoints
+│   └── private.pem           # (Auto-genererad) Privat RSA-nyckel för ID Token signering
+├── .gitignore                # Specifierar filer som Git ska ignorera (bör inkludera *.pem)
+├── docker-compose.yml        # Docker Compose konfiguration (portar, miljövariabler)
+├── Dockerfile                # Instruktioner för att bygga Docker-imagen
+└── README.md                 # Denna informationsfil
+```
+
+Filer finns redan i konversationen.
