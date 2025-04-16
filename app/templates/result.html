@@ -1,67 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>SP MOCK OIDC - {{ idp_host_name }} - Results</title>
+    <title>SP MOCK OIDC - {{ idp_host_name }} - Flow Results</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Använder gemensam style.css, men vi kan lägga till specifika regler vid behov -->
 </head>
 <body>
     <div class="container" style="max-width: 900px;">
-        <h1>SP MOCK OIDC - {{ idp_host_name }} - Results</h1>
-        <p class="lead" style="text-align: left;">Flow completed for user: <strong>{{ user.name }} ({{ user.sub }})</strong></p>
-        <p style="text-align: left;">Client ID: <code>{{ client_id }}</code></p>
-        {% if client_secret %}
-        <p style="text-align: left;">Client Secret: <code>{{ client_secret }}</code></p>
-        {% endif %}
-        
-        <hr>
-        <h2 style="text-align: left;">Tokens & Claims</h2>
+        <h1>SP MOCK OIDC - {{ idp_host_name }} - Flow Simulation Results</h1>
 
-        <div class="token-section">
-            <p><strong>Access Token:</strong></p>
-            <div class="input-group">
-                <input id="accessToken" type="text" class="form-control result-input" readonly value="{{ access_token }}">
-                <button class="copy-btn" data-target="#accessToken">Copy</button>
-            </div>
-        </div>
-
-        {% if refresh_token %}
-        <div class="token-section">
-            <p><strong>Refresh Token:</strong></p>
-            <div class="input-group">
-                <input id="refreshToken" type="text" class="form-control result-input" readonly value="{{ refresh_token }}">
-                <button class="copy-btn" data-target="#refreshToken">Copy</button>
-            </div>
+        <!-- Visa eventuella fel först -->
+        {% if flow_errors %}
+        <div class="flash-messages error">
+            <h2>Errors Encountered During Simulation!</h2>
+            <ul>
+                {% for error in flow_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
         </div>
         {% endif %}
 
-        <div class="token-section">
-            <p><strong>ID Token (Decoded Claims):</strong></p>
-            <pre>{{ id_token_claims | tojson(indent=2) }}</pre>
+        <div class="debug-section">
+            <h2>Flow Overview</h2>
+            <dl>
+                <dt>User:</dt>
+                <dd>{{ user.name }} ({{ user.sub }})</dd>
+                <dt>Selected IdP:</dt>
+                <dd>{{ idp_host_name }}</dd>
+                 <dt>Client ID:</dt>
+                <dd><code>{{ client_id }}</code></dd>
+                 <dt>Requested Scopes:</dt>
+                <dd><code>{{ scope_requested }}</code></dd>
+                <dt>Nonce Provided:</dt>
+                <dd><code>{{ nonce_provided }}</code></dd>
+            </dl>
         </div>
 
-        <hr>
-        <h2 style="text-align: left;">Example API Calls (Curl)</h2>
+        <div class="debug-section">
+            <h2>Internal Simulation Details</h2>
+            <dl>
+                {% if simulation_details.authorization_code_generated %}
+                <dt>Authorization Code Generated:</dt>
+                <dd><code>{{ simulation_details.authorization_code_generated }}</code></dd>
+                {% endif %}
 
-        <div class="curl-example">
-            <p><strong>Get UserInfo:</strong></p>
-            <div class="input-group">
-                <input id="curlUserInfo" type="text" class="form-control result-input" readonly value="{{ curl_userinfo }}">
-                <button class="copy-btn" data-target="#curlUserInfo">Copy</button>
-            </div>
+                {% if simulation_details.authorization_code_data_retrieved %}
+                <dt>Authorization Code Data Retrieved (Internal):</dt>
+                <dd><pre>{{ simulation_details.authorization_code_data_retrieved | tojson(indent=2) }}</pre></dd>
+                {% endif %}
+
+                {% if simulation_details.full_token_response_saved %}
+                <dt>Full Token Response Generated:</dt>
+                <dd><pre>{{ simulation_details.full_token_response_saved | tojson(indent=2) }}</pre></dd>
+                 {% if simulation_details.full_token_response_saved.access_token %}
+                    <dt>Access Token:</dt>
+                    <dd><code>{{ simulation_details.full_token_response_saved.access_token }}</code></dd>
+                 {% endif %}
+                 {% if simulation_details.full_token_response_saved.refresh_token %}
+                    <dt>Refresh Token:</dt>
+                    <dd><code>{{ simulation_details.full_token_response_saved.refresh_token }}</code></dd>
+                 {% endif %}
+                 {% if simulation_details.full_token_response_saved.id_token %}
+                    <dt>ID Token (Raw):</dt>
+                    <dd><pre style="word-break: break-all;">{{ simulation_details.full_token_response_saved.id_token }}</pre></dd>
+                 {% endif %}
+                {% endif %}
+
+                {% if simulation_details.id_token_decoded_claims %}
+                <dt>ID Token Decoded Claims:</dt>
+                <dd><pre>{{ simulation_details.id_token_decoded_claims | tojson(indent=2) }}</pre></dd>
+                {% else %}
+                    {% if simulation_details.full_token_response_saved.id_token %}
+                        <dt>ID Token Decoded Claims:</dt>
+                        <dd><i>Decoding failed or skipped due to generation error.</i></dd>
+                    {% endif %}
+                {% endif %}
+
+                {% if simulation_details.authorization_code_deleted %}
+                <dt>Authorization Code Deleted:</dt>
+                <dd><code>{{ simulation_details.authorization_code_deleted }}</code></dd>
+                {% endif %}
+            </dl>
         </div>
 
-        {% if refresh_token %}
-        <div class="curl-example">
-            <p><strong>Use Refresh Token:</strong></p>
-            <div class="input-group">
-                <input id="curlRefresh" type="text" class="form-control result-input" readonly value="{{ curl_refresh }}">
-                <button class="copy-btn" data-target="#curlRefresh">Copy</button>
+        <div class="debug-section">
+            <h2>Intended Final Redirect</h2>
+            <p>The flow would normally redirect the browser to:</p>
+            <p><code>{{ final_redirect_url }}</code></p>
+            <a href="{{ final_redirect_url }}" class="btn btn-sm" target="_blank">Open this URL in new tab</a>
+        </div>
+
+        <!-- Behåll exempel för curl-anrop om det är användbart -->
+        {% if simulation_details.full_token_response_saved.access_token %}
+        <div class="debug-section">
+             <h2>Example API Calls (Using Generated Tokens)</h2>
+             <div class="curl-example">
+                <p><strong>Get UserInfo:</strong></p>
+                <div class="input-group">
+                    <input id="curlUserInfo" type="text" class="form-control result-input" readonly value="{{ get_curl_userinfo(simulation_details.full_token_response_saved.access_token) }}">
+                    <button class="copy-btn" data-target="#curlUserInfo">Copy</button>
+                </div>
             </div>
+             {% if simulation_details.full_token_response_saved.refresh_token %}
+             <div class="curl-example">
+                <p><strong>Use Refresh Token:</strong></p>
+                 <div class="input-group">
+                     <!-- Antag att client_secret finns i 'client' variabeln som skickas till mallen -->
+                     <input id="curlRefresh" type="text" class="form-control result-input" readonly value="{{ get_curl_refresh(simulation_details.full_token_response_saved.refresh_token, client_id, client.client_secret if client else '') }}">
+                     <button class="copy-btn" data-target="#curlRefresh">Copy</button>
+                 </div>
+             </div>
+             {% endif %}
         </div>
         {% endif %}
+
 
         <div class="action-buttons">
+            <!-- Knapp för att avsluta session (om den funktionen finns kvar) -->
             <form action="{{ url_for('end_session') }}" method="POST" style="display: inline-block;">
                 <button type="submit" class="btn btn-secondary">End Mock Session (Logout)</button>
             </form>
@@ -69,6 +126,7 @@
         </div>
     </div>
 
+    <!-- Behåll copy-script om input-fält finns -->
     <script>
         document.querySelectorAll('.copy-btn').forEach(button => {
             button.addEventListener('click', () => {
@@ -89,5 +147,6 @@
             });
         });
     </script>
+
 </body>
 </html> 

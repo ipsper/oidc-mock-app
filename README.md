@@ -70,6 +70,23 @@ Servern exponerar fortfarande följande standard OIDC-endpoints (används intern
 *   Docker
 *   Docker Compose
 
+### Nyckelhantering
+
+För att köra applikationen behöver du en PEM-fil för signering av tokens. Du har två alternativ:
+
+### Alternativ 1: Använd lib/keys-mappen
+1. Skapa en PEM-fil med dina privata nycklar
+2. Placera filen i `lib/keys/` mappen
+3. Se till att filen heter `private.pem`
+
+### Alternativ 2: Använd egen sökväg via miljövariabel
+1. Skapa en PEM-fil var du vill på din dator
+2. Sätt miljövariabeln PEM_FILE_PATH innan du startar Docker Compose:
+   ```bash
+   export PEM_FILE_PATH=/sökväg/till/din/private.pem
+   docker-compose up
+   ```
+
 ### Hämta och Starta Servern
 
 1.  **Hämta koden:**
@@ -115,10 +132,6 @@ Grundläggande konfiguration för *mock-servern själv*:
 
 Konfiguration av de simulerade IdP:erna och deras omdirigeringsbeteende görs i `idp_hosts`-listan i `app/app.py`.
 
-### Nyckelhantering
-
-Servern använder ett RSA-nyckelpar (`app/private.pem`) för att signera ID Tokens internt. Genereras automatiskt. Radera filen och starta om för att skapa en ny.
-
 ### CSS Styling
 
 All CSS finns i `app/static/style.css`.
@@ -146,6 +159,9 @@ Här är en översikt över projektets filstruktur:
 ├── docker-compose.yml        # Docker Compose konfiguration (portar, miljövariabler)
 ├── Dockerfile                # Instruktioner för att bygga Docker-imagen
 └── README.md                 # Denna informationsfil
+└── lib/
+    └── keys/
+        └── .gitkeep
 ```
 
 Filer finns redan i konversationen.
